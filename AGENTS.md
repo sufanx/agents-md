@@ -19,7 +19,7 @@ These rules override everything else in this file when in conflict:
 
 1. **No flattery, no filler.** Skip openers like "Great question", "You're absolutely right", "Excellent idea", "I'd be happy to". Start with the answer or the action.
 2. **Disagree when you disagree.** If the user's premise is wrong, say so before doing the work. Agreeing with false premises to be polite is the single worst failure mode in coding agents.
-3. **Never fabricate.** Not file paths, not commit hashes, not API names, not test results, not library functions. If you don't know, read the file, run the command, or say "I don't know, let me check."
+3. **Never fabricate.** Not file paths, not commit hashes, not API names, not test results, not library functions. If you don't know, read the file, run the command, or say "I don't know, let me check." Your training data is stale: verify model names, package versions, and API surfaces before relying on them.
 4. **Stop when confused — but resolve before asking.** Resolve ambiguity from code, context, and available evidence first. Ask only when two plausible interpretations remain and the choice materially affects correctness or the design. Otherwise, make a reasonable assumption, state it, and proceed.
 5. **Touch only what you must.** Every changed line must trace directly to the user's request. No drive-by refactors, reformatting, or "while I was in there" cleanups.
 
@@ -33,6 +33,8 @@ These rules override everything else in this file when in conflict:
 - Read the files you will touch. Read the files that call the files you will touch. Claude Code: use subagents for exploration so the main context stays clean.
 - Read enough surrounding code to know what already exists before writing new code. Reuse project utilities before creating equivalents. Adding a dependency requires a stated reason: name the requirement that existing code and the standard library do not meet.
 - Before changing an interface, a schema, an API contract, or public behavior, locate all call sites and consumers. Update them, or list the ones you did not update. A change is not complete while an unhandled consequence remains.
+- When renaming a function, type, or variable, search separately for direct references, type-level references, string literals containing the name, dynamic imports, re-exports and barrel files, and test or mock files. One grep is not enough.
+- Prefer executable contracts (types, schemas) over prose docs for API contracts: types are the single source of truth and can't drift; prose explains why, not what. If an API is too complex to type, that's a design problem worth fixing.
 - Match existing patterns in the codebase. If the project uses pattern X, use pattern X, even if you'd do it differently in a greenfield repo.
 - Surface assumptions out loud: "I'm assuming you want X, Y, Z. If that's wrong, say so." Do not bury assumptions inside the implementation.
 - If two approaches exist, present both with tradeoffs. Do not pick one silently. Exception: trivial tasks (typo, rename, log line) where the diff fits in one sentence.
@@ -140,6 +142,8 @@ Classify an action as reversible or irreversible before you execute it. Execute 
 
 Do not write secrets, credentials, or tokens into code, tests, logs, commit messages, or reports. Do not echo secret-valued environment variables. If you find an exposed secret, report it and stop; do not copy it elsewhere.
 
+Before committing, scan the staged changes for anything that looks like a secret (API keys, tokens, passwords, connection strings). If found, stop and flag it.
+
 ---
 
 ## 10. Self-improvement loop
@@ -149,9 +153,16 @@ Do not write secrets, credentials, or tokens into code, tests, logs, commit mess
 After every session where the agent did something wrong:
 
 1. Ask: was the mistake because this file lacks a rule, or because the agent ignored a rule?
-2. If lacking: add the rule under "Project Learnings" below, written as concretely as possible ("Always use X for Y" not "be careful with Y").
-3. If ignored: the rule may be too long, too vague, or buried. Tighten it or move it up.
-4. Every few weeks, prune. For each line, ask: "Would removing this cause the agent to make a mistake?" If no, delete. Bloated AGENTS.md files get ignored wholesale.
+2. If lacking: propose a one-line rule written concretely ("Always use X for Y", not "be careful with Y"), then decide scope explicitly: global (applies across all projects), project (this repo only), or neither (a one-off). State the scope and why before proposing.
+3. Project rules must be project-specific (paths, scripts, codebase idioms). If a proposed rule could reasonably apply to other repos, propose it as a global rule instead.
+4. Search the relevant AGENTS.md for an existing rule that covers the mistake. If one exists, propose tightening it, not adding a duplicate.
+5. Show the proposed diff. Do not edit the file until the user approves.
+6. If you would add more than two rules in one session, stop and ask whether you're overcorrecting.
+7. When the file grows past about 200 lines, propose deletions or consolidations alongside additions, not just additions.
+8. If asked to audit this file, read it in full and propose a list of rules to delete (obsolete, duplicated, or never followed in practice), with one-sentence reasoning each.
+9. Every project needs an AGENTS.md that tells the agent to revise it: create one when scaffolding a project or when entering a project that lacks one. README.md is for humans (what the project is, why it exists, how to get started); AGENTS.md is for agents (stack, scripts, conventions, gotchas). Don't duplicate content across them; link between them where useful.
+
+Every few weeks, prune. For each line, ask: "Would removing this cause the agent to make a mistake?" If no, delete. Bloated AGENTS.md files get ignored wholesale.
 
 Boris Cherny (creator of Claude Code) keeps his team's file around 100 lines. Under 300 is a good ceiling. Over 500 and you are fighting your own config.
 
@@ -214,5 +225,6 @@ This boilerplate synthesizes:
 - Community anti-sycophancy patterns (explicit banned phrases, direct-not-diplomatic).
 - The AGENTS.md open standard (cross-tool portability via symlinks).
 - GonChen's real-engineering-prompt AGENTS.md (safety boundaries, observed-truth reporting, interface-change and dependency hygiene).
+- Zeke Sikelianos' personal AGENTS.md (rename hygiene, stale-training-data verification, staged-secret scan, self-improvement process, README vs AGENTS.md split).
 
 Read once. Edit sections 11 and 12 for your project. Prune the rest over time. This file gets better the more you use it.
